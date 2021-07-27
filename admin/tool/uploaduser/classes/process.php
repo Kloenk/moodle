@@ -1231,9 +1231,12 @@ class process {
 
             // Find group to add to.
             if (!empty($user->{'group'.$i})) {
+                $groups = explode('|', $user->{'group'.$i});
+
+            foreach ($groups as $group) {
                 // Make sure user is enrolled into course before adding into groups.
                 if (!is_enrolled($coursecontext, $user->id)) {
-                    $this->upt->track('enrolments', get_string('addedtogroupnotenrolled', '', $user->{'group'.$i}), 'error');
+                    $this->upt->track('enrolments', get_string('addedtogroupnotenrolled', '', $group), 'error');
                     continue;
                 }
                 // Build group cache.
@@ -1253,7 +1256,7 @@ class process {
                     }
                 }
                 // Group exists?
-                $addgroup = $user->{'group'.$i};
+                $addgroup = $group;
                 if (!array_key_exists($addgroup, $this->ccache[$shortname]->groups)) {
                     // If group doesn't exist,  create it.
                     $newgroupdata = new \stdClass();
