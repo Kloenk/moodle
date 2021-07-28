@@ -1233,58 +1233,59 @@ class process {
             if (!empty($user->{'group'.$i})) {
                 $groups = explode('|', $user->{'group'.$i});
 
-            foreach ($groups as $group) {
-                // Make sure user is enrolled into course before adding into groups.
-                if (!is_enrolled($coursecontext, $user->id)) {
-                    $this->upt->track('enrolments', get_string('addedtogroupnotenrolled', '', $group), 'error');
-                    continue;
-                }
-                // Build group cache.
-                if (is_null($this->ccache[$shortname]->groups)) {
-                    $this->ccache[$shortname]->groups = array();
-                    if ($groups = groups_get_all_groups($courseid)) {
-                        foreach ($groups as $gid => $group) {
-                            $this->ccache[$shortname]->groups[$gid] = new \stdClass();
-                            $this->ccache[$shortname]->groups[$gid]->id   = $gid;
-                            $this->ccache[$shortname]->groups[$gid]->name = $group->name;
-                            if (!is_numeric($group->name)) { // Only non-numeric names are supported!!!
-                                $this->ccache[$shortname]->groups[$group->name] = new \stdClass();
-                                $this->ccache[$shortname]->groups[$group->name]->id   = $gid;
-                                $this->ccache[$shortname]->groups[$group->name]->name = $group->name;
+                foreach ($groups as $group) {
+                    // Make sure user is enrolled into course before adding into groups.
+                    if (!is_enrolled($coursecontext, $user->id)) {
+                        $this->upt->track('enrolments', get_string('addedtogroupnotenrolled', '', $group), 'error');
+                        continue;
+                    }
+                    // Build group cache.
+                    if (is_null($this->ccache[$shortname]->groups)) {
+                        $this->ccache[$shortname]->groups = array();
+                        if ($groups = groups_get_all_groups($courseid)) {
+                            foreach ($groups as $gid => $group) {
+                                $this->ccache[$shortname]->groups[$gid] = new \stdClass();
+                                $this->ccache[$shortname]->groups[$gid]->id   = $gid;
+                                $this->ccache[$shortname]->groups[$gid]->name = $group->name;
+                                if (!is_numeric($group->name)) { // Only non-numeric names are supported!!!
+                                    $this->ccache[$shortname]->groups[$group->name] = new \stdClass();
+                                    $this->ccache[$shortname]->groups[$group->name]->id   = $gid;
+                                    $this->ccache[$shortname]->groups[$group->name]->name = $group->name;
+                                }
                             }
                         }
                     }
-                }
-                // Group exists?
-                $addgroup = $group;
-                if (!array_key_exists($addgroup, $this->ccache[$shortname]->groups)) {
-                    // If group doesn't exist,  create it.
-                    $newgroupdata = new \stdClass();
-                    $newgroupdata->name = $addgroup;
-                    $newgroupdata->courseid = $this->ccache[$shortname]->id;
-                    $newgroupdata->description = '';
-                    $gid = groups_create_group($newgroupdata);
-                    if ($gid) {
-                        $this->ccache[$shortname]->groups[$addgroup] = new \stdClass();
-                        $this->ccache[$shortname]->groups[$addgroup]->id   = $gid;
-                        $this->ccache[$shortname]->groups[$addgroup]->name = $newgroupdata->name;
-                    } else {
-                        $this->upt->track('enrolments', get_string('unknowngroup', 'error', s($addgroup)), 'error');
+                    // Group exists?
+                    $addgroup = $group;
+                    if (!array_key_exists($addgroup, $this->ccache[$shortname]->groups)) {
+                        // If group doesn't exist,  create it.
+                        $newgroupdata = new \stdClass();
+                        $newgroupdata->name = $addgroup;
+                        $newgroupdata->courseid = $this->ccache[$shortname]->id;
+                        $newgroupdata->description = '';
+                        $gid = groups_create_group($newgroupdata);
+                        if ($gid) {
+                            $this->ccache[$shortname]->groups[$addgroup] = new \stdClass();
+                            $this->ccache[$shortname]->groups[$addgroup]->id   = $gid;
+                            $this->ccache[$shortname]->groups[$addgroup]->name = $newgroupdata->name;
+                        } else {
+                            $this->upt->track('enrolments', get_string('unknowngroup', 'error', s($addgroup)), 'error');
+                            continue;
+                        }
+                    }
+                    $gid   = $this->ccache[$shortname]->groups[$addgroup]->id;
+                    $gname = $this->ccache[$shortname]->groups[$addgroup]->name;
+
+                    try {
+                        if (groups_add_member($gid, $user->id)) {
+                            $this->upt->track('enrolments', get_string('addedtogroup', '', s($gname)), 'info');
+                        } else {
+                            $this->upt->track('enrolments', get_string('addedtogroupnot', '', s($gname)), 'error');
+                        }
+                    } catch (\moodle_exception $e) {
+                        $this->upt->track('enrolments', get_string('addedtogroupnot', '', s($gname)), 'error');
                         continue;
                     }
-                }
-                $gid   = $this->ccache[$shortname]->groups[$addgroup]->id;
-                $gname = $this->ccache[$shortname]->groups[$addgroup]->name;
-
-                try {
-                    if (groups_add_member($gid, $user->id)) {
-                        $this->upt->track('enrolments', get_string('addedtogroup', '', s($gname)), 'info');
-                    } else {
-                        $this->upt->track('enrolments', get_string('addedtogroupnot', '', s($gname)), 'error');
-                    }
-                } catch (\moodle_exception $e) {
-                    $this->upt->track('enrolments', get_string('addedtogroupnot', '', s($gname)), 'error');
-                    continue;
                 }
             }
         }
